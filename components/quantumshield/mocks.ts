@@ -1,5 +1,5 @@
-import { MERKLE_CHUNK_BYTES, STORAGE_PART_BYTES, type AllowedMime } from "@/types/api"
-import type { AssemblyReport, AuditChainResult, AuditEntry, BatchSummary, CaseDetail, CaseProgress, CaseSummary, ChainInfo, DocumentDetail, DocumentRequest, DocumentSummary, Page, Role, ScanDetail, Session, VerifyResult, UploadFormFields, UploadReceipt } from "@/types/api"
+import { FIR_NUMBER_PATTERN, MERKLE_CHUNK_BYTES, STORAGE_PART_BYTES, type AllowedMime } from "@/types/api"
+import type { AssemblyReport, AuditChainResult, AuditEntry, BatchSummary, CaseDetail, CaseProgress, CaseSummary, ChainInfo, DocumentDetail, DocumentRequest, DocumentSummary, Page, Role, ScanDetail, Session, VerifyResult, FirCheck, FirRegisterResult, UploadFormFields, UploadReceipt } from "@/types/api"
 
 const HASH_A = "0123456789abcdef".repeat(4)
 const HASH_B = "abcdef0123456789".repeat(4)
@@ -21,8 +21,8 @@ export const MOCK_SESSION: Session = MOCK_SESSIONS[configuredRole && configuredR
 
 const counts = (verified: number, tampered = 0) => ({ VERIFIED: verified, TAMPERED: tampered, PENDING_ANCHOR: 0, UNANCHORED: 0, ERROR: 0, unchecked: 0 })
 export const MOCK_CASES: Page<CaseSummary> = { items: [
-  { id: "11111111-1111-4111-8111-111111111111", firNo: "NSK/2026/0142", station: "Gangapur Police Station", stage: "INVESTIGATION", status: "OPEN", createdAt: "2026-10-10T04:40:00Z", documentCount: 2, integrity: counts(1, 1) },
-  { id: "22222222-2222-4222-8222-222222222222", firNo: "NSK/2026/0187", station: "Panchavati Police Station", stage: "FORENSIC_ANALYSIS", status: "OPEN", createdAt: "2026-10-09T13:20:00Z", documentCount: 1, integrity: counts(1) },
+  { id: "11111111-1111-4111-8111-111111111111", firNo: "GNG/2026/0142/A3F9", station: "Gangapur Police Station", stage: "INVESTIGATION", status: "OPEN", createdAt: "2026-10-10T04:40:00Z", documentCount: 2, integrity: counts(1, 1) },
+  { id: "22222222-2222-4222-8222-222222222222", firNo: "PCH/2026/0187/B7D2", station: "Panchavati Police Station", stage: "FORENSIC_ANALYSIS", status: "OPEN", createdAt: "2026-10-09T13:20:00Z", documentCount: 1, integrity: counts(1) },
 ], nextCursor: null }
 
 export const MOCK_CASE: CaseDetail = { ...MOCK_CASES.items[0], allowedUploadTypes: ["FIR", "WITNESS_STATEMENT"], canUpload: true, assignments: [
@@ -115,3 +115,17 @@ export function rememberMockUpload(receipt:UploadReceipt,action:AuditEntry["acti
  const c=MOCK_CASES.items.find(item=>item.id===doc.caseId);if(c){c.documentCount++;c.integrity[receipt.verification.status]++}
  MOCK_AUDIT.items.unshift({id:receipt.auditEntryId,seq:MOCK_AUDIT.items[0].seq+1,actorName:MOCK_SESSION.user.name,role:MOCK_SESSION.user.role,action,docId:doc.id,caseId:doc.caseId,at:doc.createdAt,prevHash:MOCK_AUDIT.items[0].entryHash,entryHash:HASH_C,legalBasis:{code:MOCK_SESSION.user.role==="FORENSIC_LAB"?"FORENSIC_ASSIGNMENT":MOCK_SESSION.user.role==="PUBLIC_PROSECUTOR"?"PROSECUTION_ASSIGNMENT":"INVESTIGATION",citation:null,orderRef:null},detail:"Simulated receipt; no cloud evidence was changed"})
 }
+
+/** Fictional register responses: never a substitute for the server's hash-chain checks. */
+export function mockRegisterCase(session:Session):CaseDetail {
+ const stationCode=session.user.station==="Panchavati Police Station"?"PCH":"GNG"
+ const year=new Date().getUTCFullYear()
+ const serial=Math.max(0,...MOCK_CASES.items.filter(c=>c.firNo.startsWith(stationCode+"/"+year+"/")).map(c=>Number(c.firNo.split("/")[2])))+1
+ const code=(0xA3F9+serial).toString(16).toUpperCase().slice(-4).padStart(4,"0")
+ return {...MOCK_CASE,id:crypto.randomUUID(),firNo:stationCode+"/"+year+"/"+String(serial).padStart(4,"0")+"/"+code,station:session.user.station,stage:"FIR_REGISTERED",status:"OPEN",documentCount:0,manifest:null,integrity:counts(0),createdAt:new Date().toISOString(),assignments:[{userName:session.user.name,role:session.user.role}],allowedUploadTypes:session.allowedUploadTypes,canUpload:session.allowedUploadTypes.length>0,canAssemble:false}
+}
+export function mockFirCheck(firNo:string):FirCheck {
+ const found=FIR_NUMBER_PATTERN.test(firNo)?MOCK_CASES.items.find(c=>c.firNo===firNo):undefined
+ return {firNo,genuine:!!found,stationCode:found?found.firNo.split("/")[0]:null,issuedAt:found?.createdAt??null}
+}
+export const MOCK_FIR_REGISTER: FirRegisterResult={status:"pass",checkedEntries:329,checkedAt:"2026-10-10T05:04:00Z",firstBrokenSeq:null,problem:null}

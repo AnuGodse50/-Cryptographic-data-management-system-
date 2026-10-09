@@ -17,7 +17,7 @@ export function CopyableHash({ value, label = "Hash" }: { value: string | null; 
  if (!value) return <span className="text-xs text-muted-foreground">Not recorded</span>
  return <span className="inline-flex max-w-full items-center gap-1"><details className="min-w-0"><summary className="cursor-pointer rounded font-mono text-xs text-muted-foreground" title={value}>{value.slice(0, 8)}…{value.slice(-6)}</summary><span className="hash-value block max-w-60 py-2">{value}</span></details><Button variant="ghost" size="icon-sm" className="no-print shrink-0" onClick={copy} aria-label={"Copy " + label}>{copied ? <Check/> : <Copy/>}</Button><span className="print-only hash-value">{value}</span></span>
 }
-export function SectionCard({ title, description, action, children, className = "" }: { title?: string; description?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+export function SectionCard({ title, description, action, children, className = "" }: { title?: ReactNode; description?: string; action?: ReactNode; children: ReactNode; className?: string }) {
  return <Card className={className}>{title && <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{title}</CardTitle>{description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}</div>{action}</div></CardHeader>}<CardContent>{children}</CardContent></Card>
 }
 export function StatCard({ label, value, detail, icon, danger = false }: { label: string; value: number; detail: string; icon: ReactNode; danger?: boolean }) {
