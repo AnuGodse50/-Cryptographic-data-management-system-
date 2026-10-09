@@ -1,0 +1,11 @@
+import Link from "next/link"
+import { Plus, Search } from "lucide-react"
+import { formatIST } from "@/components/quantumshield/format"
+import { MOCK_CASES } from "@/components/quantumshield/mocks"
+import { PageHeader } from "@/components/quantumshield/page-header"
+import { StatusBadge } from "@/components/quantumshield/status-badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+export default function CasesPage() { return <div className="page-grid"><PageHeader eyebrow="Case registry" title="Cases" description="Records visible under your role, assignment and station policy." action={<Button><Plus/>Create case</Button>}/><div className="relative max-w-md"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><Input className="pl-9" placeholder="Search by FIR number" aria-label="Search cases"/></div><Card><CardContent><div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>FIR number</TableHead><TableHead>Station</TableHead><TableHead>Stage</TableHead><TableHead>Created</TableHead><TableHead>Documents</TableHead><TableHead>Integrity</TableHead></TableRow></TableHeader><TableBody>{MOCK_CASES.items.map(item => <TableRow key={item.id}><TableCell><Link href={`/cases/${item.id}`} className="font-semibold text-primary hover:underline">{item.firNo}</Link></TableCell><TableCell>{item.station}</TableCell><TableCell>{item.stage}</TableCell><TableCell className="whitespace-nowrap">{formatIST(item.createdAt)}</TableCell><TableCell>{item.documentCount}</TableCell><TableCell><StatusBadge status={item.integrity.TAMPERED ? "TAMPERED" : item.integrity.PENDING_ANCHOR ? "PENDING_ANCHOR" : "VERIFIED"}/></TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card></div> }
