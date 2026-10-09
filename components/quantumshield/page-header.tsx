@@ -1,4 +1,6 @@
+import Link from "next/link"
+import { ChevronRight } from "lucide-react"
 import type { ReactNode } from "react"
-export function PageHeader({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description: string; action?: ReactNode }) {
-  return <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{eyebrow}</p><h1 className="text-2xl font-semibold tracking-tight">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{description}</p></div>{action}</div>
+export function PageHeader({ eyebrow, title, description, action, breadcrumbs = [] }: { eyebrow?:string; title:string; description:string; action?:ReactNode; breadcrumbs?:{label:string;href?:string}[] }) {
+ return <div className="page-heading"><nav aria-label="Breadcrumb" className="mb-3 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">{breadcrumbs.length ? breadcrumbs.map((b,i)=><span className="inline-flex items-center gap-1.5" key={b.label}>{i>0&&<ChevronRight className="size-3"/>}{b.href?<Link href={b.href} className="hover:text-primary">{b.label}</Link>:<span aria-current="page">{b.label}</span>}</span>):<span className="section-label">{eyebrow||"Workspace"}</span>}</nav><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="min-w-0"><h1>{title}</h1><p className="mt-2 max-w-xl text-sm text-muted-foreground">{description}</p></div><div className="no-print flex shrink-0 flex-wrap items-center gap-2">{action}</div></div></div>
 }

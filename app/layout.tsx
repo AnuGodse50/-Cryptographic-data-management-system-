@@ -7,7 +7,7 @@ import "./globals.css"
 const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] })
 
-export const metadata: Metadata = { title: { default: "QuantumShield", template: "%s · QuantumShield" }, description: "Tamper-evident, quantum-safe judicial evidence management" }
+export const metadata: Metadata = { title: { default: "Sakshya", template: "%s · Sakshya" }, description: "Traceable judicial evidence with off-chain post-quantum signatures and verifiable integrity", icons: { icon: "/icon.svg" } }
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning><body><ThemeProvider>{children}<Toaster position="top-right" /></ThemeProvider></body></html>

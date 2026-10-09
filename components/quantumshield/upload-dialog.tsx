@@ -1,26 +1,21 @@
 "use client"
-import { FileUp, Loader2 } from "lucide-react"
 import { useState } from "react"
+import { FileUp } from "lucide-react"
 import { toast } from "sonner"
-import { ALLOWED_UPLOAD_MIME, MAX_UPLOAD_BYTES, type DocType } from "@/types/api"
+import { ALLOWED_UPLOAD_MIME, MAX_UPLOAD_BYTES, type DocType, type UploadReceipt } from "@/types/api"
+import { apiFetch, USE_MOCKS } from "@/components/api-client"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-const labels: Record<DocType, string> = { FIR: "FIR", WITNESS_STATEMENT: "Witness statement", FORENSIC_REPORT: "Forensic report", CHARGE_SHEET: "Charge sheet" }
-export function UploadDialog({ caseId, allowedTypes }: { caseId: string; allowedTypes: DocType[] }) {
-  const [type, setType] = useState<DocType | "">(allowedTypes[0] ?? "")
-  const [file, setFile] = useState<File | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState("")
-  const submit = async () => {
-    if (!file || !type) return setError("Choose a permitted document type and file.")
-    if (file.size > MAX_UPLOAD_BYTES) return setError("File exceeds 4 MB.")
-    if (!(file.type in ALLOWED_UPLOAD_MIME)) return setError("Use a PDF, DOCX, TXT, PNG or JPG file.")
-    setBusy(true); setError(""); await new Promise(resolve => setTimeout(resolve, 800)); setBusy(false)
-    toast.success(`Simulated upload received for case ${caseId.slice(0, 8)}…`, { description: "AES-256-GCM encrypted · ML-DSA-65 signed · anchor pending" })
-  }
-  return <Dialog><DialogTrigger asChild><Button disabled={!allowedTypes.length}><FileUp/>Upload document</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Secure evidence upload</DialogTitle><DialogDescription>Files are append-only. Corrections create a new linked version.</DialogDescription></DialogHeader><div className="grid gap-4"><div className="grid gap-2"><Label>Document type</Label><Select value={type} onValueChange={value => setType(value as DocType)}><SelectTrigger><SelectValue placeholder="Choose a type"/></SelectTrigger><SelectContent>{allowedTypes.map(item => <SelectItem key={item} value={item}>{labels[item]}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-2"><Label htmlFor="evidence-file">Evidence file</Label><Input id="evidence-file" type="file" accept={Object.values(ALLOWED_UPLOAD_MIME).join(",")} onChange={event => setFile(event.target.files?.[0] ?? null)}/><p className="text-xs text-muted-foreground">PDF, DOCX, TXT, PNG or JPG · maximum 4 MB</p></div>{file ? <div className="rounded-lg border bg-muted/30 p-3 text-xs"><b>{file.name}</b><p className="mt-1 text-muted-foreground">{file.type || "Unknown type"} · {(file.size / 1024).toFixed(1)} KB</p></div> : null}{error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}</div><DialogFooter showCloseButton><Button onClick={() => void submit()} disabled={busy}>{busy ? <Loader2 className="animate-spin"/> : <FileUp/>}{busy ? "Protecting evidence…" : "Encrypt and upload"}</Button></DialogFooter></DialogContent></Dialog>
+import { CopyableHash, Stepper, humanize } from "./design-system"
+import { StatusBadge } from "./status-badge"
+import { mockUpload, rememberMockUpload } from "./mocks"
+import { formatBytes } from "./format"
+export function UploadDialog({caseId,allowedTypes,parentId,onComplete}:{caseId:string;allowedTypes:DocType[];parentId?:string;onComplete?:()=>void}) {
+ const [step,setStep]=useState(0),[file,setFile]=useState<File|null>(null),[type,setType]=useState<DocType>(allowedTypes[0]),[busy,setBusy]=useState(false),[error,setError]=useState("")
+ const [receipt,setReceipt]=useState<UploadReceipt|null>(null)
+ function validate(){if(!file||!type){setError("Choose a file and document type.");return false}if(!file.size||file.size>MAX_UPLOAD_BYTES){setError("Choose a non-empty file no larger than 4 MB.");return false}if(!(file.type in ALLOWED_UPLOAD_MIME)){setError("Choose PDF, DOCX, TXT, PNG or JPG.");return false}setError("");return true}
+ async function submit(){if(!validate()||!file)return;setBusy(true);try{const form={file,caseId,type,parentId};const result=await apiFetch("POST /api/documents",{form,mock:USE_MOCKS?mockUpload(form):undefined});if(USE_MOCKS)rememberMockUpload(result);setReceipt(result);setStep(2);toast.success(USE_MOCKS?"Simulated upload receipt ready":"Upload receipt ready")}catch(e){setError(e instanceof Error?e.message:"Upload failed");toast.error("Upload could not finish")}finally{setBusy(false)}}
+ return <Dialog onOpenChange={open=>{if(!open&&receipt)onComplete?.();if(open){setStep(0);setReceipt(null);setError("")}}}><DialogTrigger asChild><Button disabled={!allowedTypes.length} title={!allowedTypes.length?"Your role cannot upload to this case":undefined}><FileUp/>{parentId?"Add new version":"Upload document"}</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{parentId?"Add a linked evidence version":"Upload evidence"}</DialogTitle><DialogDescription>Evidence is append-only. Original records and custody history are retained.</DialogDescription></DialogHeader><Stepper steps={["Choose file","Confirm details","Receipt"]} current={step}/>{step===0&&<div className="grid gap-4"><div className="grid gap-2"><Label htmlFor="upload-type">Document type</Label><select id="upload-type" className="h-11 rounded-md border bg-background px-3 text-sm" value={type} onChange={e=>setType(e.target.value as DocType)}>{allowedTypes.map(t=><option key={t} value={t}>{humanize(t)}</option>)}</select></div><div className="grid gap-2"><Label htmlFor="upload-file">Evidence file</Label><Input id="upload-file" type="file" accept={Object.values(ALLOWED_UPLOAD_MIME).join(",")} onChange={e=>setFile(e.target.files?.[0]??null)}/><p className="text-xs text-muted-foreground">PDF, DOCX, TXT, PNG, JPG · maximum 4 MB</p></div></div>}{step===1&&file&&<div className="rounded-lg border bg-muted/40 p-4 text-sm"><p className="break-all font-semibold">{file.name}</p><p className="mt-2 text-muted-foreground">{humanize(type)} · {formatBytes(file.size)}</p><p className="mt-4 text-xs">{USE_MOCKS?"Demo mode: the file is not uploaded or cryptographically processed. The next screen is a simulated receipt.":"Your file will be encrypted and signed. Blockchain anchoring is a separate step."}</p></div>}{step===2&&receipt&&<div className="space-y-4" aria-live="polite"><StatusBadge status={receipt.verification.status}/><p className="text-sm">{receipt.document.filename}</p><p className="text-xs text-muted-foreground">{receipt.encryption} · {receipt.keyWrapping}<br/>{receipt.signature.algorithm}: {receipt.signature.status}</p><div><p className="section-label">Content hash</p><CopyableHash value={receipt.document.sha256}/></div><div><p className="section-label">Audit reference</p><CopyableHash value={receipt.auditEntryId} label="Audit reference"/></div></div>}{error&&<p role="alert" className="text-sm text-tampered">{error}</p>}<DialogFooter showCloseButton>{step===0&&<Button onClick={()=>{if(validate())setStep(1)}}>Review upload</Button>}{step===1&&<><Button variant="outline" disabled={busy} onClick={()=>setStep(0)}>Back</Button><Button disabled={busy} onClick={()=>void submit()}>{busy?"Submitting…":USE_MOCKS?"Simulate upload":"Encrypt and upload"}</Button></>}</DialogFooter></DialogContent></Dialog>
 }

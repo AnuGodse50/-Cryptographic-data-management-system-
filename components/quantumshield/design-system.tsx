@@ -1,0 +1,53 @@
+"use client"
+import Link from "next/link"
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react"
+import { ArrowDownUp, Check, ChevronLeft, ChevronRight, Copy, FileSearch, FileText, Image as ImageIcon, Info, Printer, Search } from "lucide-react"
+import { toast } from "sonner"
+import type { AllowedMime, ISODate, LegalBasis } from "@/types/api"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Skeleton } from "@/components/ui/skeleton"
+import { formatIST } from "./format"
+
+export function CopyableHash({ value, label = "Hash" }: { value: string | null; label?: string }) {
+ const [copied, setCopied] = useState(false)
+ async function copy() { try { await navigator.clipboard.writeText(value!); setCopied(true); toast.success(label + " copied"); } catch { toast.error("Could not copy. Select the full value below."); } }
+ if (!value) return <span className="text-xs text-muted-foreground">Not recorded</span>
+ return <span className="inline-flex max-w-full items-center gap-1"><details className="min-w-0"><summary className="cursor-pointer rounded font-mono text-xs text-muted-foreground" title={value}>{value.slice(0, 8)}…{value.slice(-6)}</summary><span className="hash-value block max-w-60 py-2">{value}</span></details><Button variant="ghost" size="icon-sm" className="no-print shrink-0" onClick={copy} aria-label={"Copy " + label}>{copied ? <Check/> : <Copy/>}</Button><span className="print-only hash-value">{value}</span></span>
+}
+export function SectionCard({ title, description, action, children, className = "" }: { title?: string; description?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+ return <Card className={className}>{title && <CardHeader><div className="flex flex-wrap items-start justify-between gap-3"><div><CardTitle>{title}</CardTitle>{description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}</div>{action}</div></CardHeader>}<CardContent>{children}</CardContent></Card>
+}
+export function StatCard({ label, value, detail, icon, danger = false }: { label: string; value: number; detail: string; icon: ReactNode; danger?: boolean }) {
+ return <SectionCard className="stat-card"><div className="flex items-center justify-between gap-2"><p className="text-xs font-medium text-muted-foreground">{label}</p><span className={danger ? "text-tampered" : "text-primary"}>{icon}</span></div><div className={"my-3 text-4xl font-semibold tracking-tight " + (danger ? "text-tampered" : "")}><span className="stat-number" aria-hidden="true" style={{"--stat-target":value} as CSSProperties}/><span className="sr-only">{value}</span></div><p className="text-xs text-muted-foreground">{detail}</p></SectionCard>
+}
+export function EmptyState({ title, description, action, icon = <FileSearch className="size-6"/> }: { title: string; description: string; action?: ReactNode; icon?: ReactNode }) {
+ return <div className="flex flex-col items-center gap-3 px-4 py-12 text-center"><span className="grid size-12 place-items-center rounded-2xl bg-accent text-primary">{icon}</span><h2 className="text-base font-semibold">{title}</h2><p className="max-w-md text-sm text-muted-foreground">{description}</p>{action}</div>
+}
+export function PageSkeleton() { return <div aria-busy="true" aria-label="Loading workspace" className="page-grid"><Skeleton className="h-9 w-52"/><Skeleton className="h-5 w-72 max-w-full"/><div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{[0,1,2,3].map(i=><Skeleton key={i} className="h-32"/>)}</div><Skeleton className="h-80 w-full"/></div> }
+export function InlineNotice({ children, danger = false }: { children: ReactNode; danger?: boolean }) { return <div role={danger ? "alert" : "status"} className={"flex items-start gap-2 rounded-lg border p-3 text-xs " + (danger ? "tone-danger" : "tone-info")}><Info className="mt-0.5 size-4 shrink-0"/><div>{children}</div></div> }
+export function LegalBasisView({ value }: { value: LegalBasis }) { return <div className="max-w-xs whitespace-normal text-xs"><p className="font-medium">{humanize(value.code)}</p>{value.citation && <p className="mt-1 text-muted-foreground">{value.citation}</p>}{value.orderRef && <p className="mt-1 font-medium text-primary">{value.orderRef}</p>}</div> }
+export function humanize(value: string) { return value.toLowerCase().replaceAll("_", " ").split(" ").map(word=>word.charAt(0).toUpperCase()+word.slice(1)).join(" ") }
+export function RelativeTime({ at }: { at: ISODate | null }) {
+ const [now,setNow] = useState<number | null>(null)
+ useEffect(()=>{ const timer=setInterval(()=>setNow(Date.now()),60000); const init=setTimeout(()=>setNow(Date.now()),0); return ()=>{clearTimeout(init);clearInterval(timer)} },[])
+ if (!at) return <span>Not yet</span>
+ let text = formatIST(at)
+ if (now) { const seconds=Math.round((new Date(at).getTime()-now)/1000); const abs=Math.abs(seconds); const unit=abs<3600?"minute":abs<86400?"hour":"day"; const divisor=unit==="minute"?60:unit==="hour"?3600:86400; text=new Intl.RelativeTimeFormat("en",{numeric:"auto"}).format(Math.round(seconds/divisor),unit) }
+ return <time dateTime={at} title={formatIST(at)} className="text-xs text-muted-foreground">{text}<span className="print-only">{formatIST(at)}</span></time>
+}
+export function FileIcon({ mime }: { mime: AllowedMime }) { return <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary">{mime.startsWith("image") ? <ImageIcon className="size-5"/> : <FileText className="size-5"/>}</span> }
+export function PrintButton({ label = "Print summary" }: { label?: string }) { return <Button className="no-print" variant="outline" onClick={()=>window.print()}><Printer/>{label}</Button> }
+export function Stepper({ steps, current }: { steps: string[]; current: number }) { return <ol aria-label="Steps" className="mb-5 grid grid-cols-3 gap-2">{steps.map((step,i)=><li key={step} aria-current={i===current?"step":undefined} className={"border-t-2 pt-2 text-xs " + (i<=current?"border-primary text-primary":"border-border text-muted-foreground")}><span className="font-semibold">{i+1}. </span>{step}</li>)}</ol> }
+export function Timeline({ children }: { children: ReactNode }) { return <ol className="timeline">{children}</ol> }
+export function TimelineItem({ title, detail, at, danger = false, children }: { title: string; detail?: string; at?: ISODate; danger?: boolean; children?: ReactNode }) { return <li><span className={"timeline-dot " + (danger?"text-tampered":"text-primary")}><span className="size-1.5 rounded-full bg-current"/></span><div className="flex flex-wrap items-center justify-between gap-1"><p className="text-sm font-medium">{title}</p>{at&&<RelativeTime at={at}/>}</div>{detail&&<p className="mt-1 text-xs text-muted-foreground">{detail}</p>}{children}</li> }
+export function DataTable<T>({ rows, columns, rowKey, searchText, empty = "No records match these filters", searchLabel = "Search records" }: { rows:T[]; columns:{key:string;label:string;render:(row:T)=>ReactNode;sort?:(row:T)=>string|number}[]; rowKey:(row:T)=>string; searchText:(row:T)=>string; empty?:string; searchLabel?:string }) {
+ const [query,setQuery]=useState(""); const [sort,setSort]=useState<{key:string;asc:boolean}|null>(null); const [page,setPage]=useState(0)
+ const filtered=rows.filter(r=>searchText(r).toLowerCase().includes(query.toLowerCase())); const column=columns.find(c=>c.key===sort?.key)
+ if(column?.sort) filtered.sort((a,b)=>String(column.sort!(a)).localeCompare(String(column.sort!(b)),undefined,{numeric:true})*(sort?.asc?1:-1))
+ const count=Math.max(1,Math.ceil(filtered.length/6)); const current=Math.min(page,count-1)
+ return <div className="min-w-0"><div className="no-print relative mb-4 max-w-sm"><Search className="absolute left-3 top-3.5 size-4 text-muted-foreground"/><Input aria-label={searchLabel} placeholder={searchLabel} value={query} onChange={e=>{setQuery(e.target.value);setPage(0)}} className="pl-9"/></div>{filtered.length ? <Table><TableHeader><TableRow>{columns.map(c=><TableHead key={c.key} aria-sort={sort?.key===c.key?(sort.asc?"ascending":"descending"):undefined}>{c.sort?<button className="flex min-h-11 items-center gap-1 text-left" onClick={()=>setSort({key:c.key,asc:sort?.key===c.key?!sort.asc:true})}>{c.label}<ArrowDownUp className="size-3"/></button>:c.label}</TableHead>)}</TableRow></TableHeader><TableBody>{filtered.slice(current*6,current*6+6).map(r=><TableRow key={rowKey(r)}>{columns.map(c=><TableCell key={c.key}>{c.render(r)}</TableCell>)}</TableRow>)}</TableBody></Table>:<EmptyState title={empty} description="Clear the search or select a different status to see your permitted records." action={<Button variant="outline" onClick={()=>setQuery("")}>Clear search</Button>}/>}<div className="no-print mt-4 flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{filtered.length} records · Page {current+1} of {count}</span><div className="flex gap-1"><Button aria-label="Previous page" size="icon-sm" variant="outline" disabled={current===0} onClick={()=>setPage(current-1)}><ChevronLeft/></Button><Button aria-label="Next page" size="icon-sm" variant="outline" disabled={current+1>=count} onClick={()=>setPage(current+1)}><ChevronRight/></Button></div></div></div>
+}
+export function BackLink({href,label}:{href:string;label:string}) { return <Link href={href} className="no-print inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"><ChevronLeft className="size-3"/>{label}</Link> }

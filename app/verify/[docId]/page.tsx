@@ -1,3 +1,7 @@
-import { ShieldCheck } from "lucide-react"
+import type { Metadata } from "next"
+import { Brand } from "@/components/quantumshield/brand"
 import { Unavailable } from "@/components/quantumshield/unavailable"
-export default async function VerifyPage({ params }: PageProps<"/verify/[docId]">) { const { docId } = await params; return <main className="min-h-dvh bg-background"><header className="flex h-16 items-center gap-3 border-b px-4 sm:px-8"><ShieldCheck className="text-primary"/><div><p className="font-semibold">QuantumShield</p><p className="text-xs text-muted-foreground">Public verification receipt · {docId.slice(0, 8)}…</p></div></header><Unavailable feature="Public verification" detail="Public proof receipts are disabled in this build. Sign in to inspect authorized evidence."/></main> }
+import { TrustStrip } from "@/components/quantumshield/trust-strip"
+import { USE_MOCKS } from "@/components/api-client"
+export const metadata:Metadata={title:"Public verification"}
+export default async function Page({params}:PageProps<"/verify/[docId]">){await params;return <main className="min-h-dvh bg-background"><header className="border-b bg-card p-5"><Brand href="/login"/></header>{USE_MOCKS&&<div className="bg-pending-surface p-3 text-center text-xs text-pending">Demo data — simulated results</div>}<Unavailable feature="Public verification" detail="Public proof receipts are unavailable in this build. Sign in to inspect authorized evidence."/><TrustStrip/></main>}

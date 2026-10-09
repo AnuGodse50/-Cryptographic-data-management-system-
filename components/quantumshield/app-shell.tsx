@@ -1,31 +1,44 @@
 "use client"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { BookOpenCheck, Boxes, FileCheck2, Gavel, LayoutDashboard, LogOut, Menu, Scale, ScanSearch, ShieldCheck, Sparkles, TimerReset } from "lucide-react"
-import type { ReactNode } from "react"
-import { USE_MOCKS } from "@/components/api-client"
-import { MOCK_SESSION } from "@/components/quantumshield/mocks"
-import { roleLabel } from "@/components/quantumshield/format"
-import { TrustStrip } from "@/components/quantumshield/trust-strip"
+import { usePathname, useRouter } from "next/navigation"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useTheme } from "next-themes"
+import { Bell, BookOpenCheck, Boxes, ChevronDown, FileCheck2, Gavel, LayoutDashboard, LogOut, Menu, Moon, Scale, ScanSearch, Search, Shield, Sun, TimerReset } from "lucide-react"
+import { toast } from "sonner"
+import type { Role } from "@/types/api"
+import { apiFetch, USE_MOCKS } from "@/components/api-client"
+import { MOCK_SESSION, MOCK_CASE, MOCK_GRANTED_DOCUMENT } from "./mocks"
+import { Brand } from "./brand"
+import { SessionContext } from "./session"
+import { useResource } from "./use-resource"
+import { AccessDenied, ResourceError } from "./access-state"
+import { PageSkeleton } from "./design-system"
+import { roleLabel } from "./format"
+import { TrustStrip } from "./trust-strip"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-
-const staffNav = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard }, { href: "/cases", label: "Cases", icon: Gavel },
-  { href: "/integrity", label: "Integrity", icon: ScanSearch }, { href: "/audit", label: "Audit trail", icon: BookOpenCheck },
-  { href: "/batches", label: "Merkle batches", icon: Boxes }, { href: "/assistant", label: "Case assistant", icon: Sparkles },
-]
-function navigationForRole() {
-  if (MOCK_SESSION.user.role === "COMPLAINANT") return [{ href: "/cases/11111111-1111-4111-8111-111111111111/progress", label: "My case progress", icon: TimerReset }]
-  if (MOCK_SESSION.user.role === "DEFENCE_ADVOCATE") return [{ href: "/requests", label: "Document requests", icon: Scale }, { href: "/documents/77777777-7777-4777-8777-777777777777", label: "Granted evidence", icon: FileCheck2 }]
-  if (MOCK_SESSION.user.role === "JUDGE") return [...staffNav.slice(0, 2), { href: "/requests", label: "Request queue", icon: Scale }, ...staffNav.slice(2)]
-  return staffNav
+import { Input } from "@/components/ui/input"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+const progressPath="/cases/"+MOCK_CASE.id+"/progress"
+const grantedPath="/documents/"+MOCK_GRANTED_DOCUMENT.id
+export function roleHome(role:Role) {return role==="COMPLAINANT"?progressPath:role==="DEFENCE_ADVOCATE"?"/requests":"/dashboard"}
+function linksFor(role:Role) {
+ if(role==="COMPLAINANT") return [{href:progressPath,label:"My case progress",icon:TimerReset,group:"Your case"}]
+ if(role==="DEFENCE_ADVOCATE") return [{href:"/requests",label:"Document requests",icon:Scale,group:"Disclosure"},{href:grantedPath,label:"Granted evidence",icon:FileCheck2,group:"Disclosure"}]
+ const items=[{href:"/dashboard",label:"Overview",icon:LayoutDashboard,group:"Workspace"},{href:"/cases",label:"Case register",icon:Gavel,group:"Workspace"}]
+ if(role==="JUDGE") items.push({href:"/requests",label:"Court requests",icon:Scale,group:"Workspace"})
+ if(role==="JUDGE"||role==="ADMIN") items.push({href:"/integrity",label:"Integrity monitor",icon:ScanSearch,group:"Assurance"},{href:"/audit",label:"Audit trail",icon:BookOpenCheck,group:"Assurance"},{href:"/batches",label:"Blockchain anchors",icon:Boxes,group:"Assurance"})
+ return items
 }
-function Navigation({ mobile = false }: { mobile?: boolean }) {
-  const pathname = usePathname()
-  return <nav className="grid gap-1" aria-label="Primary">{navigationForRole().map(({href,label,icon:Icon}) => { const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`)); return <Link key={href} href={href} className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"}`}><Icon className="size-4"/>{label}{mobile && active ? <span className="sr-only">Current page</span> : null}</Link> })}</nav>
-}
-function Brand() { const home = MOCK_SESSION.user.role === "COMPLAINANT" ? "/cases/11111111-1111-4111-8111-111111111111/progress" : MOCK_SESSION.user.role === "DEFENCE_ADVOCATE" ? "/requests" : "/dashboard"; return <Link href={home} className="flex items-center gap-3"><span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><ShieldCheck className="size-5"/></span><span><b className="block text-sm">QuantumShield</b><span className="text-xs text-muted-foreground">Evidence integrity</span></span></Link> }
-export function AppShell({ children }: { children: ReactNode }) {
-  return <div className="min-h-dvh bg-background"><aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-sidebar-border bg-sidebar p-4 lg:flex lg:flex-col"><Brand/><div className="mt-8"><Navigation/></div><div className="mt-auto rounded-lg border border-sidebar-border bg-background/30 p-3 text-xs"><p className="font-medium">{MOCK_SESSION.user.name}</p><p className="mt-1 text-muted-foreground">{roleLabel(MOCK_SESSION.user.role)}</p><p className="text-muted-foreground">{MOCK_SESSION.user.station}</p></div></aside><div className="flex min-h-dvh flex-col lg:pl-60"><header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur lg:px-8"><Sheet><SheetTrigger asChild><Button variant="outline" size="icon" className="lg:hidden"><Menu/><span className="sr-only">Open navigation</span></Button></SheetTrigger><SheetContent side="left" className="w-72 p-4"><SheetHeader className="sr-only"><SheetTitle>Navigation</SheetTitle><SheetDescription>QuantumShield sections</SheetDescription></SheetHeader><Brand/><div className="mt-8"><Navigation mobile/></div></SheetContent></Sheet><div className="lg:hidden"><Brand/></div><div className="ml-auto hidden items-center gap-2 text-xs text-muted-foreground sm:flex"><FileCheck2 className="size-4 text-verified"/>Zero-trust session · {roleLabel(MOCK_SESSION.user.role)}</div><Button variant="ghost" size="sm" asChild><Link href="/login"><LogOut/>Sign out</Link></Button></header>{USE_MOCKS ? <div role="status" className="border-b border-pending/25 bg-pending-surface px-4 py-2 text-center text-xs font-medium text-pending">Demo data — simulated results</div> : null}<main className="mx-auto w-full max-w-[1440px] flex-1 p-4 sm:p-6 lg:p-8">{children}</main><TrustStrip/></div></div>
+export function AppShell({children}:{children:ReactNode}) {
+ const session=useResource("GET /api/auth/session",{mock:MOCK_SESSION});const pathname=usePathname();const router=useRouter();const [mobile,setMobile]=useState(false);const [query,setQuery]=useState("");const searchRef=useRef<HTMLInputElement>(null);const {theme,setTheme}=useTheme()
+ useEffect(()=>{function key(e:KeyboardEvent){const target=e.target as HTMLElement;if(e.key==="/"&&!target.matches("input,textarea,select,[contenteditable=true]")&&!document.querySelector('[role="dialog"]')){e.preventDefault();searchRef.current?.focus()}}window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[])
+ if(session.loading) return <main className="mx-auto max-w-5xl p-8"><PageSkeleton/></main>
+ if(session.error||!session.data) return <ResourceError error={session.error||new Error("No session")} retry={session.reload}/>
+ const user=session.data.user;const links=linksFor(user.role);const home=roleHome(user.role)
+ const restricted=user.role==="COMPLAINANT"?pathname!==progressPath:user.role==="DEFENCE_ADVOCATE"?!["/requests",grantedPath].includes(pathname):false
+ const allowed=!restricted
+ const groups=Array.from(new Set(links.map(l=>l.group)))
+ const navigation=<nav aria-label="Primary" className="space-y-7">{groups.map(group=><div key={group}><p className="section-label mb-2 px-3">{group}</p><div className="space-y-1">{links.filter(l=>l.group===group).map(({href,label,icon:Icon})=>{const active=pathname===href||(href==="/cases"&&pathname.startsWith("/cases/"));return <Link key={href} href={href} aria-current={active?"page":undefined} onClick={()=>setMobile(false)} className={"flex min-h-11 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors duration-200 "+(active?"bg-accent text-primary":"text-muted-foreground hover:bg-muted hover:text-foreground")}><Icon className="size-[17px]"/>{label}{active&&<span className="ml-auto size-1.5 rounded-full bg-primary"/>}</Link>})}</div></div>)}</nav>
+ return <SessionContext.Provider value={session.data}><div className="min-h-dvh"><a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-card focus:p-3">Skip to content</a><aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-card p-5 lg:flex"><Brand href={home}/><div className="mt-10">{navigation}</div><div className="mt-auto rounded-xl border bg-background p-4"><Shield className="mb-2 size-5 text-primary"/><p className="text-xs font-semibold">A record you can trace</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Every version preserved.<br/>Every access accountable.</p></div></aside><div className="app-body min-w-0 lg:pl-60"><header data-app-header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b bg-card px-4 sm:gap-4 sm:px-8"><Sheet open={mobile} onOpenChange={setMobile}><SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation"><Menu/></Button></SheetTrigger><SheetContent side="left" className="w-72 p-5"><SheetHeader className="sr-only"><SheetTitle>Sakshya navigation</SheetTitle><SheetDescription>Your permitted workspace sections</SheetDescription></SheetHeader><Brand href={home}/><div className="mt-8">{navigation}</div></SheetContent></Sheet><div className="relative min-w-0 flex-1 max-w-md"><Search className="absolute left-3 top-3 size-4 text-muted-foreground"/><Input ref={searchRef} value={query} onChange={e=>setQuery(e.target.value)} aria-label="Search workspace sections" placeholder="Search workspace…" className="!min-h-10 border-transparent bg-muted pl-9 pr-8 shadow-none"/><kbd className="absolute right-3 top-2.5 text-xs text-muted-foreground">/</kbd>{query&&<div className="absolute inset-x-0 top-12 rounded-xl border bg-card p-2 shadow-lg">{links.filter(l=>l.label.toLowerCase().includes(query.toLowerCase())).map(l=><Link key={l.href} href={l.href} onClick={()=>setQuery("")} className="block rounded-lg p-3 text-sm hover:bg-accent">{l.label}</Link>)}{!links.some(l=>l.label.toLowerCase().includes(query.toLowerCase()))&&<p className="p-3 text-xs text-muted-foreground">No matching section. Try “case” or “request”.</p>}</div>}</div><div className="ml-auto flex items-center gap-1"><Button variant="ghost" size="icon" onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label="Switch appearance"><Sun className="size-4 dark:hidden"/><Moon className="hidden size-4 dark:block"/></Button><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Notifications"><Bell className="size-4"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-64 p-4"><DropdownMenuLabel>Notifications</DropdownMenuLabel><p className="mt-2 text-xs text-muted-foreground">No notification feed is connected. Review your case records for evidence findings.</p></DropdownMenuContent></DropdownMenu><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="gap-2 px-1 sm:px-2" aria-label="Open user menu"><span className="grid size-8 place-items-center rounded-full bg-accent text-xs font-bold text-primary">{user.name.split(" ").slice(-2).map(x=>x[0]).join("")}</span><span className="hidden text-left md:block"><span className="block text-xs font-semibold">{user.name}</span><span className="block text-[10px] text-muted-foreground">{roleLabel(user.role)}</span></span><ChevronDown className="hidden size-3 sm:block"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-64"><DropdownMenuLabel>{user.name}<span className="mt-1 block font-normal">{roleLabel(user.role)} · {user.station}</span></DropdownMenuLabel><DropdownMenuSeparator/><DropdownMenuItem onClick={async()=>{try{await apiFetch("POST /api/auth/logout",{mock:{ok:true}});router.push("/login")}catch{toast.error("Sign out failed. Please retry.")}}}><LogOut/>Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></header>{USE_MOCKS&&<div role="status" className="border-b border-pending/20 bg-pending-surface px-4 py-2 text-center text-[11px] font-medium text-pending">Demo data — simulated results</div>}<main id="main-content" className="mx-auto min-h-[70vh] w-full max-w-[1440px] p-4 pt-3 sm:p-7 sm:pt-3"><div key={pathname} className="page-enter">{allowed?children:<AccessDenied/>}</div></main><TrustStrip/></div></div></SessionContext.Provider>
 }

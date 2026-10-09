@@ -1,0 +1,17 @@
+import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+import test from "node:test"
+import { createElement } from "react"
+import { renderToStaticMarkup } from "react-dom/server"
+import { IntegrityPanel } from "./integrity-panel"
+import { StatusBadge } from "./status-badge"
+import { MOCK_ASSEMBLY, MOCK_AUDIT, MOCK_DOCUMENTS, MOCK_TAMPERED_RESULT, MOCK_VERIFIED_RESULT, mockVerification } from "./mocks"
+import { TRUST_COPY } from "./trust-strip"
+import type { VerifyStatus } from "@/types/api"
+function contrast(a:string,b:string){const lum=(hex:string)=>{const c=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4);return c[0]*0.2126+c[1]*0.7152+c[2]*0.0722};const x=lum(a),y=lum(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05)}
+test("light text palette meets AA contrast",()=>{for(const [name,fg,bg] of [["body","#0f1b33","#f7f8fb"],["secondary","#536078","#ffffff"],["primary","#ffffff","#3949ab"],["verified","#076849","#eaf8f0"],["tampered","#b42332","#fff1f2"],["pending","#875000","#fff6e3"],["neutral","#536078","#f0f3f8"],["info","#3949ab","#eef1ff"]]){const ratio=contrast(fg,bg);assert.ok(ratio>=4.5,name+": "+ratio.toFixed(2));console.log(name+" contrast "+ratio.toFixed(2)+":1")};assert.ok(contrast("#8793a7","#ffffff")>=3)})
+test("all verification states pair an icon with a label; only VERIFIED is green",()=>{for(const status of ["VERIFIED","TAMPERED","PENDING_ANCHOR","UNANCHORED","ERROR"] as VerifyStatus[]){const html=renderToStaticMarkup(createElement(StatusBadge,{status}));assert.match(html,/<svg/);assert.equal(html.includes("tone-verified"),status==="VERIFIED");assert.ok(!html.includes(">"+status+"<"))}})
+test("tamper incident preserves six checks, exact range, parts, accessors and trust boundary",()=>{const html=renderToStaticMarkup(createElement(IntegrityPanel,{result:MOCK_TAMPERED_RESULT,documentName:"FIR_0142.txt",canRestore:true,onRestore:async()=>{}}));assert.equal((html.match(/check-reveal/g)??[]).length,6);assert.match(html,/chunk 2, bytes 8192–12287/);assert.match(html,/FIR_0142.txt/);assert.match(html,/Inspector Aditi Patil/);assert.match(html,/Restore original/);assert.match(html,/Local dev chain/);assert.match(html,/Encrypted storage parts/);assert.ok(!html.includes("tone-verified"));assert.ok(html.includes(TRUST_COPY.replaceAll("'","&#x27;")))})
+test("verified fixture renders green; assembly does not contradict its tampered source",()=>{assert.match(renderToStaticMarkup(createElement(IntegrityPanel,{result:MOCK_VERIFIED_RESULT})),/tone-verified/);assert.equal(MOCK_ASSEMBLY.bundle,null);assert.equal(MOCK_ASSEMBLY.documents[0].verification.status,"TAMPERED");for(const d of MOCK_DOCUMENTS.items){assert.equal(mockVerification(d.id).parts?.length,d.partCount)}})
+test("every audit fixture contains legal authority",()=>{for(const e of MOCK_AUDIT.items){assert.ok(e.legalBasis.code);assert.ok("citation" in e.legalBasis);assert.ok("orderRef" in e.legalBasis)}})
+test("motion, print and light defaults are explicit",()=>{const css=readFileSync("app/globals.css","utf8");assert.ok(css.includes("@media (prefers-reduced-motion:reduce)"));assert.ok(css.includes("animation:none!important"));assert.ok(css.includes("transition:none!important"));assert.ok(css.includes("@media print"));assert.match(readFileSync("components/theme-provider.tsx","utf8"),/defaultTheme="light"/);assert.match(readFileSync("app/layout.tsx","utf8"),/default: "Sakshya"/)})
