@@ -35,12 +35,12 @@ describe("auth gate", () => {
       assert.equal(r.json.error.code, "UNAUTHENTICATED");
     }
   });
-  it("deferred routes return 503 FEATURE_DISABLED", async () => {
-    for (const [fn, m] of [[publicVerify, "GET"], [assistant, "POST"]] as const) {
-      const r = await call(fn, m, { as: police });
-      assert.equal(r.status, 503);
-      assert.equal(r.json.error.code, "FEATURE_DISABLED");
-    }
+  it("public verify is deferred (503 FEATURE_DISABLED); the assistant is live and validates its body", async () => {
+    const r = await call(publicVerify, "GET", { as: police });
+    assert.equal(r.status, 503);
+    assert.equal(r.json.error.code, "FEATURE_DISABLED");
+    const a = await call(assistant, "POST", { as: police });
+    assert.equal(a.status, 422);
   });
 });
 

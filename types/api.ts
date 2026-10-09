@@ -425,12 +425,68 @@ export interface DemoAttackReport {
 
 // ───────────────────────────── deferred / bonus (types reserved; routes return FEATURE_DISABLED until built)
 export interface PublicReceipt { docId: UUID; checkedAt: ISODate; verification: VerifyResult }
+
+// ───────────────────────────── case assistant (permission-aware retrieval over verified case files + the legal corpus)
+/**
+ * One entry of the curated legal corpus (data/legal). These are SUMMARIES written for this project, not the official
+ * statutory text — the UI must label them that way ("Summary · not the official text").
+ */
+export interface LegalRef { id: string; ref: string; title: string; text: string }
+/** A case document the assistant refused to read because its integrity check failed. Always shown in red. */
+export interface ExcludedDoc { docId: UUID; filename: string; status: VerifyStatus; reason: string }
+/** RETRIEVAL = quoted passages only (no language model). MODEL = a Bedrock model wrote the answer from the same passages. */
+export type AnswerMode = "RETRIEVAL" | "MODEL";
+
+/** Anyone who can see the case may ask; only documents the asker may read (RLS) and that pass verification are used. */
 export interface AssistantRequest { caseId: UUID; question: string }
 export interface AssistantAnswer {
   answer: string;
   noAnswer: boolean;
+  mode: AnswerMode;
+  /** Quotes are verbatim from the verified plaintext of the cited document. */
   citations: { docId: UUID; filename: string; quote: string; sha256: Hash; verification: VerifyResult }[];
+  legal: LegalRef[];
+  excluded: ExcludedDoc[];
 }
+
+export type SuggestionKind = "INTEGRITY" | "MISSING_RECORD" | "ELECTRONIC_EVIDENCE" | "SEARCH_SEIZURE" | "STATEMENTS";
+/** ACTION = something the court should direct; CHECK = something to confirm before relying on the record. */
+export interface Suggestion {
+  kind: SuggestionKind;
+  priority: "ACTION" | "CHECK";
+  title: string;
+  detail: string;
+  docIds: UUID[];
+  legal: LegalRef[];
+}
+/** GET /api/assistant/judge-brief — JUDGE/ADMIN. Every document is re-verified; tampered ones are excluded and flagged. */
+export interface JudgeBrief {
+  caseId: UUID;
+  firNo: string;
+  stage: CaseStage;
+  generatedAt: ISODate;
+  documentsChecked: number;
+  suggestions: Suggestion[];
+  excluded: ExcludedDoc[];
+}
+
+/** GET /api/assistant/advocate — DEFENCE_ADVOCATE (and the court). Built from document titles only; no content is read. */
+export interface AdvocateSuggestion {
+  documentId: UUID;
+  type: DocType;
+  filename: string;
+  version: number;
+  latest: boolean;
+  priority: "HIGH" | "MEDIUM" | "LOW";
+  why: string;
+  /** Pre-fill for FileRequestBody.legalBasis. */
+  basisCode: "STATUTORY_DISCLOSURE" | "COURT_ORDER";
+  citation: string;
+  legal: LegalRef[];
+  /** This advocate's newest request covering the document, if any. */
+  requestStatus: RequestStatus | null;
+}
+export interface AdvocateSuggestions { caseId: UUID; firNo: string; stage: CaseStage; items: AdvocateSuggestion[] }
 
 // ───────────────────────────── endpoint map (documentation + typed fetch helper input)
 type Q<T> = { query: T };
@@ -488,5 +544,7 @@ export interface ApiRoutes {
   // deferred — return 503 FEATURE_DISABLED until built
   "GET /api/verify/[docId]": { res: PublicReceipt };
   "POST /api/assistant": { body: AssistantRequest; res: AssistantAnswer };
+  "GET /api/assistant/judge-brief": Q<{ caseId: UUID }> & { res: JudgeBrief };
+  "GET /api/assistant/advocate": Q<{ firNo: string }> & { res: AdvocateSuggestions };
 }
 export type ApiRoute = keyof ApiRoutes;

@@ -79,6 +79,6 @@ export function toSession(user: SessionUser): Session {
     user: { id: user.id, name: user.name, email: user.email, role: user.role, station: user.station, clearance: Number(user.clearance) },
     canCreateCase: canCreateCase(user.role),
     allowedUploadTypes: allowedUploadTypes(user.role),
-    assistantEnabled: false, // bonus feature: off until the Bedrock RAG path is built
+    assistantEnabled: true, // case assistant: retrieval over verified documents + legal corpus (lib/assistant)
   };
 }

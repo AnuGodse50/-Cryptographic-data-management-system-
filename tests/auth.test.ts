@@ -64,7 +64,7 @@ describe("auth routes", () => {
       const body = await res.json();
       assert.equal(body.user.role, u.role);
       assert.equal(body.canCreateCase, u.role === "POLICE");
-      assert.equal(body.assistantEnabled, false);
+      assert.equal(body.assistantEnabled, true);
       const set = res.headers.get("set-cookie")!;
       assert.match(set, /HttpOnly/);
       assert.match(set, /SameSite=Lax/);

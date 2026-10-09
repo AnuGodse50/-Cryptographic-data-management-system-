@@ -7,7 +7,9 @@ const nextConfig: NextConfig = {
   // EC2 + pm2 deploy runs the self-contained server from .next/standalone
   output: "standalone",
   // native-ish / dynamic-require server deps: load with Node require instead of bundling
-  serverExternalPackages: ["pg", "@electric-sql/pglite"],
+  serverExternalPackages: ["pg", "@electric-sql/pglite", "unpdf"],
+  // the assistant reads the legal corpus from disk at runtime; standalone tracing cannot see a computed path
+  outputFileTracingIncludes: { "/api/assistant/**": ["./data/legal/**"] },
   turbopack: {
     rules: {
       "*.css": {

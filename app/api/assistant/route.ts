@@ -1,6 +1,9 @@
-import { disabled } from "@/lib/http";
+import { askCase } from "@/lib/assistant/ask";
+import { authed, jsonBody, requireUuid, str } from "@/lib/http";
 
 export const runtime = "nodejs";
 
-// Deferred (bonus): the Bedrock assistant is cut. Session.assistantEnabled is false.
-export const POST = disabled("The evidence assistant is not enabled");
+export const POST = authed(async (request, user) => {
+  const body = await jsonBody(request);
+  return askCase(user, requireUuid(body.caseId, "caseId"), str(body.question, "question", 500));
+});

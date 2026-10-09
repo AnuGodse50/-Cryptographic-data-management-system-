@@ -46,6 +46,7 @@ Real Cognito logins for 7 roles and real Sepolia transactions. **All checks pass
 
 ## 5. Not tested or not built
 - The UI pages were not tested by me (the UI belongs to Codex).
-- The Bedrock assistant, public verify receipts and PDF watermarking are not built. The two routes return 503 `FEATURE_DISABLED`.
+- Public verify receipts and PDF watermarking are not built; `/api/verify/[docId]` returns 503 `FEATURE_DISABLED`.
+- The case assistant answers from verbatim quotes only: Bedrock model access is blocked on the AWS account (`ValidationException: Operation not allowed` for every model, 10 Oct 2026). Setting `BEDROCK_CHAT_MODEL_ID` turns on model-written answers once access is granted. `tests/assistant.test.ts` covers RLS before retrieval, tampered documents never quoted, verbatim citations, judge-only briefs and title-only advocate suggestions.
 - Writing a FIR in the browser is covered by a unit test, but I have not run it on the live site.
 - No load or performance testing was done.

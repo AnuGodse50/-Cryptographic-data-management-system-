@@ -1,0 +1,15 @@
+[
+  {
+    "source_id": "rag_starter_corpus",
+    "type": "CORPUS",
+    "title": "India Case-Record Integrity and Digital Evidence Law",
+    "kind": "Curated summaries, not the official statutory text",
+    "entries": 42,
+    "author": "team member, GitHub AnuGodse50",
+    "source_repo": "https://github.com/AnuGodse50/RAG-of-Cryptographic-data-management-",
+    "source_commit": "6506061",
+    "file": "rag_starter_corpus.jsonl",
+    "sha256": "b98f23a08c387f7a570557890c1b1efea4320455201efa7aa276c7757c909193",
+    "language": "en"
+  }
+]
